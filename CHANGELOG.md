@@ -21,6 +21,16 @@
   * กำหนด `outline: none !important;` และ `box-shadow: none !important;` ทั่วทั้งพาเนล
   * ป้องกันไม่ให้เกิดเส้นขอบ Focus สีฟ้า/ขาว หรือเงาหนาปรากฏขึ้นมาเมื่อคลิกปุ่มหรือช่อง Input ต่างๆ
 
+### 🛡️ แก้ไขปัญหา Illustrator แคช (Illustrator Crash & Heap Corruption Fix)
+* **ตรวจพบสาเหตุแครชจาก Crash Log (0xc0000374 Heap Corruption & 0xc0000005 Access Violation):**
+  * พบ Event Error ในระบบ Windows Event Log และ Adobe Crash Reporter (`CRLogs`) ที่ `ntdll.dll` และ `Illustrator.exe`
+  * **ต้นเหตุ:** ในฟังก์ชัน `raster()` ของ `main.jsx` มีการสั่ง `previewLayer.remove()` ลบ Layer พรีวิวชั่วคราวและวัตถุ Clone ทิ้งออกจากหน่วยความจำ C++ DOM แล้วเรียก `app.redraw(); app.undo();` ทันทีหลังจากนั้น
+  * การเรียก `app.undo()` ซ้ำบนอ็อบเจกต์ที่เพิ่งถูกทำลายหน่วยความจำไปแล้ว ทำให้ Undo Manager ของ Illustrator พยายามย้อนสถานะบน Dangling Pointer (Use-After-Free / Double-Free) ส่งผลให้ตัวจัดการหน่วยความจำของ Windows ดักจับ Heap Corruption และปิดโปรแกรมทันที
+* **การแก้ไขอย่างเด็ดขาด (Safe Document Cleanup):**
+  * บันทึกสถานะ `doc.saved` ก่อนเริ่มพรีวิว แล้วคืนค่า `doc.saved = wasSaved` โดยตรงหลังลบ Layer พรีวิว เพื่อให้เอกสารคงสถานะบันทึกไว้ได้โดยไม่ต้องพึ่งพา `app.undo()`
+  * ยกเลิกการเรียก `app.undo()` จากสคริปต์พรีวิวทั้งหมด ป้องกันการรบกวน Undo Stack และตัดความเสี่ยงเรื่องหน่วยความจำเสียหายโดยสิ้นเชิง
+  * ปรับปรุงการคำนวณพื้นที่ว่าง (Occupied Bounds) ให้ครอบคลุม Artboards และครอบ `try-catch` เมื่ออ่าน `visibleBounds` ป้องกันข้อผิดพลาดกับวัตถุที่ซับซ้อน
+
 ### 🔍 ระบบ Reverse Pattern Matcher (แท็บ Matcher)
 * **แก้ไขข้อผิดพลาด Repeat Mode:** ทำให้ตัวเลือก `Repeat Mode` ในแท็บ Matcher ใช้งานได้จริงและเป็นอิสระ ไม่ถูกดึงค่าจากแท็บ Repeat มาเขียนทับเมื่อสลับแท็บ
 * **อินพุตพิกัดเวกเตอร์ 4 ทิศทาง (4-Coordinate Vector Inputs):** ปรับให้รองรับการป้อนค่า `Horizontal X`, `Horizontal Y`, `Vertical X`, `Vertical Y` เพื่อค้นหารูปแบบลายที่เอียงหรือเยื้องได้อย่างแม่นยำ

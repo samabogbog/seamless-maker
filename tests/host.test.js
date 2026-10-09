@@ -200,7 +200,7 @@ test('in-document preview isolates artwork and restores layers, selection, bound
     const f=fixture({colorSpace}),rect=f.original.artboards[0].artboardRect.slice(),selection=f.original.selection,layer=f.original.activeLayer,bounds=f.source.visibleBounds.slice();
     layer.locked=true;
     f.call({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
-    assert.equal(f.app.visibleAdds,0);assert.equal(f.app.redraws,2);assert.equal(f.app.undos,1);
+    assert.equal(f.app.visibleAdds,0);assert.equal(f.app.redraws,2);assert.equal(f.app.undos,0);
     assert.equal(f.app.activeDocument,f.original);assert.equal(f.documents.length,1);
     assert.deepEqual(f.original.artboards[0].artboardRect,rect);assert.deepEqual(f.source.visibleBounds,bounds);
     assert.equal(f.original.selection,selection);assert.equal(f.original.activeLayer,layer);assert.equal(f.original.layers.items.length,1);
@@ -217,7 +217,7 @@ test('capture failure removes temporary content and PNG and restores original st
     assert.equal(result.ok,false);assert.match(result.error,/Injected/);
     assert.equal(f.documents.length,1);assert.equal(f.pngs.size,0);assert.equal(f.app.activeDocument,f.original);
     assert.deepEqual(f.original.artboards[0].artboardRect,rect);assert.equal(f.original.layers.items.length,1);
-    assert.equal(layer.visible,true);assert.equal(f.original.selection,selection);assert.equal(f.original.activeLayer,layer);assert.equal(f.app.undos,1);
+    assert.equal(layer.visible,true);assert.equal(f.original.selection,selection);assert.equal(f.original.activeLayer,layer);assert.equal(f.app.undos,0);
   }
 });
 

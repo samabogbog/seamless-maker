@@ -50,7 +50,7 @@ Grid/Staggered Rows repeat their finite base positions by the full tile period; 
 - Creation revalidates the document, artboard, source bounds/opacity/blending and preview settings. If they change, refresh first. SymbolItem does not expose a transform matrix; if you change the source's orientation or definition without changing its bounds, click Refresh to update the image.
 - A failed creation removes only the new output layer and restores the old selection/layer. A successful repeat can be removed by deleting its new layer; the extension does not guarantee a single Illustrator undo step.
 - An empty panel or missing menu usually means Illustrator was not restarted, the ZIP was not fully extracted, or unsigned extensions are not enabled for that host runtime. Version 1.0.1 explicitly loads the host from CEP's extension folder when the manifest did not initialize it. If initialization fails, the panel reports the missing file/module or underlying script error. Close/reopen the panel after updating its installed files.
-- Preview uses imageCapture in the existing RGB/CMYK document. It temporarily duplicates the Symbol beyond other artwork, removes that copy before redraw, and undoes only the preview transaction. No document is opened or closed; errors include the failing preview stage. An existing Redo branch can be cleared.
+- Preview uses imageCapture in the existing RGB/CMYK document. It temporarily duplicates the Symbol beyond other artwork, removes that copy before redraw, and cleanly restores document saved state, active layer and selection without dangerous app.undo() calls that cause heap corruption crashes. No document is opened or closed; errors include the failing preview stage.
 
 ## Uninstall
 

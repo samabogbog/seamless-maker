@@ -67,6 +67,7 @@
     function raster(doc, source, s) {
         var previewLayer = null, png = null, success = false, step = "read source bounds";
         var oldLayer = doc.activeLayer, oldSelection = doc.selection, occupied = null, i;
+        var wasSaved = doc.saved;
         try {
             var originalSize = dimensions(source);
             if (Math.max(originalSize.width, originalSize.height) * s.scale / 100 > 16383) {
@@ -75,14 +76,28 @@
             // Commit preceding edits before starting our reversible preview transaction.
             // Never redraw while the isolated layer is present.
             app.redraw();
-            // Reserve a capture region beyond all existing artwork, including locked layers.
-            for (i = 0; i < doc.pageItems.length; i += 1) {
-                var existing = doc.pageItems[i].visibleBounds;
-                if (!occupied) { occupied = [existing[0], existing[1], existing[2], existing[3]]; }
-                else {
-                    occupied[0] = Math.min(occupied[0], existing[0]); occupied[1] = Math.max(occupied[1], existing[1]);
-                    occupied[2] = Math.max(occupied[2], existing[2]); occupied[3] = Math.min(occupied[3], existing[3]);
+            // Reserve a capture region beyond all existing artwork and artboards.
+            if (doc.artboards && doc.artboards.length) {
+                for (i = 0; i < doc.artboards.length; i += 1) {
+                    var ab = doc.artboards[i].artboardRect;
+                    if (ab) {
+                        if (!occupied) { occupied = [ab[0], ab[1], ab[2], ab[3]]; }
+                        else {
+                            occupied[0] = Math.min(occupied[0], ab[0]); occupied[1] = Math.max(occupied[1], ab[1]);
+                            occupied[2] = Math.max(occupied[2], ab[2]); occupied[3] = Math.min(occupied[3], ab[3]);
+                        }
+                    }
                 }
+            }
+            for (i = 0; i < doc.pageItems.length; i += 1) {
+                try {
+                    var existing = doc.pageItems[i].visibleBounds;
+                    if (!occupied) { occupied = [existing[0], existing[1], existing[2], existing[3]]; }
+                    else {
+                        occupied[0] = Math.min(occupied[0], existing[0]); occupied[1] = Math.max(occupied[1], existing[1]);
+                        occupied[2] = Math.max(occupied[2], existing[2]); occupied[3] = Math.min(occupied[3], existing[3]);
+                    }
+                } catch (ignoredItemBounds) {}
             }
             step = "create isolated preview layer";
             previewLayer = doc.layers.add(); previewLayer.name = "Seamless Preview (temporary)";
@@ -130,16 +145,17 @@
             throw wrapped;
         } finally {
             if (previewLayer) {
-                previewLayer.remove();
-                if (doc.activeLayer !== oldLayer) { doc.activeLayer = oldLayer; }
-                var selection = doc.selection, sameSelection = (selection ? selection.length : 0) === (oldSelection ? oldSelection.length : 0);
-                if (sameSelection && oldSelection) {
-                    for (i = 0; i < oldSelection.length; i += 1) { if (selection[i] !== oldSelection[i]) { sameSelection = false; break; } }
-                }
-                if (!sameSelection) { doc.selection = oldSelection; }
-                // Flush only after cleanup, then undo the completed preview transaction.
-                // This restores the saved flag without leaving an empty preview undo entry.
-                app.redraw(); app.undo();
+                try { previewLayer.remove(); } catch (ignoredLayerRemove) {}
+                if (oldLayer) { try { if (doc.activeLayer !== oldLayer) { doc.activeLayer = oldLayer; } } catch (ignoredActiveLayer) {} }
+                try {
+                    var selection = doc.selection, sameSelection = (selection ? selection.length : 0) === (oldSelection ? oldSelection.length : 0);
+                    if (sameSelection && oldSelection) {
+                        for (i = 0; i < oldSelection.length; i += 1) { if (selection[i] !== oldSelection[i]) { sameSelection = false; break; } }
+                    }
+                    if (!sameSelection) { doc.selection = oldSelection; }
+                } catch (ignoredSelection) {}
+                try { if (doc.saved !== wasSaved) { doc.saved = wasSaved; } } catch (ignoredSaved) {}
+                try { app.redraw(); } catch (ignoredRedraw) {}
             }
             if (!success && png) { try { png.remove(); } catch (ignoredFile) {} }
         }
