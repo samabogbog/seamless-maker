@@ -76,9 +76,11 @@
             // Commit preceding edits before starting our reversible preview transaction.
             // Never redraw while the isolated layer is present.
             app.redraw();
-            // Reserve a capture region beyond all existing artwork and artboards.
+            // Fast occupied region: combine artboard extents, top-level layer items, and source symbol.
+            // Avoids scanning doc.pageItems recursively, which causes severe freezing on documents with many objects/layers.
             if (doc.artboards && doc.artboards.length) {
-                for (i = 0; i < doc.artboards.length; i += 1) {
+                var abCount = doc.artboards.length;
+                for (i = 0; i < abCount; i += 1) {
                     var ab = doc.artboards[i].artboardRect;
                     if (ab) {
                         if (!occupied) { occupied = [ab[0], ab[1], ab[2], ab[3]]; }
@@ -89,15 +91,36 @@
                     }
                 }
             }
-            for (i = 0; i < doc.pageItems.length; i += 1) {
-                try {
-                    var existing = doc.pageItems[i].visibleBounds;
-                    if (!occupied) { occupied = [existing[0], existing[1], existing[2], existing[3]]; }
-                    else {
-                        occupied[0] = Math.min(occupied[0], existing[0]); occupied[1] = Math.max(occupied[1], existing[1]);
-                        occupied[2] = Math.max(occupied[2], existing[2]); occupied[3] = Math.min(occupied[3], existing[3]);
+            if (doc.layers && doc.layers.length) {
+                var layerCount = doc.layers.length;
+                for (var l = 0; l < layerCount; l += 1) {
+                    var lyr = doc.layers[l];
+                    var layerItems = lyr.pageItems || lyr.items;
+                    if (layerItems) {
+                        var itemCount = layerItems.length;
+                        var scanLimit = itemCount > 150 ? 150 : itemCount;
+                        for (i = 0; i < scanLimit; i += 1) {
+                            try {
+                                var existing = layerItems[i].visibleBounds;
+                                if (existing) {
+                                    if (!occupied) { occupied = [existing[0], existing[1], existing[2], existing[3]]; }
+                                    else {
+                                        occupied[0] = Math.min(occupied[0], existing[0]); occupied[1] = Math.max(occupied[1], existing[1]);
+                                        occupied[2] = Math.max(occupied[2], existing[2]); occupied[3] = Math.min(occupied[3], existing[3]);
+                                    }
+                                }
+                            } catch (ignoredItemBounds) {}
+                        }
                     }
-                } catch (ignoredItemBounds) {}
+                }
+            }
+            var srcBounds = source.visibleBounds;
+            if (srcBounds) {
+                if (!occupied) { occupied = [srcBounds[0], srcBounds[1], srcBounds[2], srcBounds[3]]; }
+                else {
+                    occupied[0] = Math.min(occupied[0], srcBounds[0]); occupied[1] = Math.max(occupied[1], srcBounds[1]);
+                    occupied[2] = Math.max(occupied[2], srcBounds[2]); occupied[3] = Math.min(occupied[3], srcBounds[3]);
+                }
             }
             step = "create isolated preview layer";
             previewLayer = doc.layers.add(); previewLayer.name = "Seamless Preview (temporary)";
