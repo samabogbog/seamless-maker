@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seamless Maker</title>
+  <link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+  <div class="panel">
+    <header>
+      <h1>Seamless Maker</h1>
+      <div class="segmented tab-segmented" aria-label="Panel tabs">
+        <button id="tabMaker" class="active" type="button" aria-pressed="true">Repeat</button>
+        <button id="tabMatcher" type="button" aria-pressed="false">Matcher</button>
+      </div>
+      <span class="version">1.1.8</span>
+    </header>
+    <main>
+      <div id="makerPane" class="tab-pane active">
+        <div class="source-row"><div class="source-thumb" id="sourceThumb"><span>◇</span></div><div class="source-info"><strong id="sourceName">No symbol selected</strong><span id="sourceMeta">Select in Illustrator</span></div><button id="useSymbol" class="secondary">Use Selected Symbol</button></div>
+        <section class="preview-section" aria-label="Pattern preview">
+          <div class="preview-layout">
+            <div class="preview-stage-wrap">
+              <div id="previewStage" class="preview-stage"><canvas id="preview" aria-label="Symbol pattern preview"></canvas><div id="emptyPreview"><span class="empty-mark">▦</span><strong>Your repeat, before you create</strong><span>Load a symbol to preview its pattern.</span></div></div>
+              <div class="preview-caption"><span id="tileDimensions">— × —</span><span id="instanceCount">0 instances</span></div>
+            </div>
+            <div class="preview-toolbar-col" aria-label="Preview controls">
+              <div class="segmented-v" aria-label="Preview view">
+                <button id="tileView" class="active" type="button" aria-pressed="true" title="Single Tile View" aria-label="Single Tile View">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/></svg>
+                </button>
+                <button id="repeatView" type="button" aria-pressed="false" title="Repeat Pattern Preview" aria-label="Repeat Pattern Preview">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                    <rect x="2" y="2" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="6.4" y="2" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="10.8" y="2" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="2" y="6.4" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="6.4" y="6.4" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="10.8" y="6.4" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="2" y="10.8" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="6.4" y="10.8" width="3.2" height="3.2" rx="0.5"/>
+                    <rect x="10.8" y="10.8" width="3.2" height="3.2" rx="0.5"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="segmented-v zoom-buttons-v" aria-label="Preview zoom">
+                <button id="zoomFit" class="active" type="button" aria-pressed="true" title="Fit to Preview" aria-label="Fit to Preview">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3.5H6M13.5 10v3.5H10"/></svg>
+                </button>
+                <button id="zoom50" type="button" aria-pressed="false" title="50% Zoom" aria-label="50% Zoom">
+                  <svg viewBox="0 0 16 16" width="14" height="14"><text x="8" y="11" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">50%</text></svg>
+                </button>
+                <button id="zoom100" type="button" aria-pressed="false" title="100% Zoom" aria-label="100% Zoom">
+                  <svg viewBox="0 0 16 16" width="14" height="14"><text x="8" y="11" text-anchor="middle" font-size="6" font-weight="700" fill="currentColor" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">100%</text></svg>
+                </button>
+              </div>
+              <div class="bg-tool-wrap">
+                <button id="bgToggle" type="button" class="preview-tool-btn" title="Toggle Background (White / Transparent)" aria-label="Toggle background">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                    <rect x="2" y="2" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M2 8h12M8 2v12" stroke="currentColor" stroke-width="0.8"/>
+                    <rect x="8" y="2" width="6" height="6" fill="currentColor" opacity="0.85"/>
+                    <rect x="2" y="8" width="6" height="6" fill="currentColor" opacity="0.85"/>
+                  </svg>
+                </button>
+                <select id="background" aria-label="Preview background" style="display:none">
+                  <option value="white" selected>White</option>
+                  <option value="transparent">Transparent</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="controls" aria-label="Repeat settings">
+          <div class="preset-toolbar" aria-label="Pattern presets"><span>PRESET</span><button id="importPreset" class="secondary">Import JSON</button><button id="exportPreset" class="secondary">Export JSON</button></div>
+          <div class="section-title">TILE SIZE<div class="section-actions"><select id="units" aria-label="Dimension units"><option value="mm">mm</option><option value="cm">cm</option><option value="in">in</option><option value="pt">pt</option></select><button id="refresh" class="text-button" title="Refresh active artboard and symbol appearance">Refresh</button></div></div>
+          <div class="row four"><label class="span-two">Size Source<select id="sizeMode" aria-label="Tile size source"><option value="artboard">Active Artboard</option><option value="custom">Custom</option></select></label><label>Width<input id="width" type="number" min="0.001" step="any" disabled></label><label>Height<input id="height" type="number" min="0.001" step="any" disabled></label></div>
+          <div class="row four"><label class="span-two">Repeat Mode<select id="mode"><option value="all">All Sides</option><option value="vertical">Top–Bottom</option></select></label><label class="span-two">Layout<select id="layout"><option value="lattice">Tilted Lattice</option><option value="grid">Grid</option><option value="stagger">Staggered Rows</option></select></label></div>
+          <div id="latticeControls">
+            <div class="row four"><label id="tiltRows" title="Row Tilt (Count): integer vertical-cycle shifts across one tile width.">Row Tilt<input id="rowShift" type="number" value="0" min="-10000" max="10000" step="1"></label><label title="Column Tilt (Count): Rotary Angle. Integer column compensation, not degrees.">Column Tilt<input id="columnShift" type="number" value="0" min="-10000" max="10000" step="1"></label><label id="rowCyclesField" title="Row Cycles (Unit): Rotary's vertical repeat-cycle count, not measurement units.">Row Cycles<input id="rowCycles" type="number" value="1" min="1" max="10000" step="1"></label><div class="control-hint">Tilt values<br>are counts.</div></div>
+            <div class="row four"><label>Horizontal X<input id="horizontalX" type="number" value="50" step="any"></label><label>Horizontal Y<input id="horizontalY" type="number" value="0" step="any"></label><label>Vertical X<input id="verticalX" type="number" value="0" step="any" disabled></label><label>Vertical Y<input id="verticalY" type="number" value="0" step="any" disabled></label></div>
+            <div id="latticeInfo" class="lattice-info" aria-live="polite"></div>
+          </div>
+          <div class="row four action-row"><label title="Horizontal Steps">H. Steps<input id="columns" aria-label="Horizontal Steps" type="number" value="4" min="1" max="10000" step="1"></label><label title="Vertical Steps">V. Steps<input id="rows" aria-label="Vertical Steps" type="number" value="4" min="1" max="10000" step="1"></label><button id="create" class="primary span-two" disabled>Create</button></div>
+          <div id="status" role="status" aria-live="polite">Ready to load a symbol.</div>
+        </section>
+      </div>
+      <div id="matcherPane" class="tab-pane matcher-container" style="display:none">
+        <div class="section-title">REVERSE PATTERN SOLVER<span id="matcherResultCount" class="field-unit">0 found</span></div>
+        <div class="matcher-inputs">
+          <div class="row four">
+            <label class="span-two">Tile Source
+              <select id="matchSizeMode">
+                <option value="sync" selected>Same as Repeat Tile</option>
+                <option value="custom">Custom Size</option>
+              </select>
+            </label>
+            <label>Width
+              <input id="matchWidth" type="number" min="0.001" step="any" disabled>
+            </label>
+            <label>Height
+              <input id="matchHeight" type="number" min="0.001" step="any" disabled>
+            </label>
+          </div>
+          <div class="row four">
+            <label class="span-two">Repeat Mode
+              <select id="matchMode">
+                <option value="all" selected>All Sides (4 edges)</option>
+                <option value="vertical">Top–Bottom (vertical only)</option>
+              </select>
+            </label>
+            <label class="span-two">Units
+              <select id="matchUnits">
+                <option value="mm" selected>mm</option>
+                <option value="cm">cm</option>
+                <option value="in">in</option>
+                <option value="pt">pt</option>
+              </select>
+            </label>
+          </div>
+          <div class="row four">
+            <label title="Displacement X to the next symbol along the row">Horizontal X
+              <input id="matchHx" type="number" step="any" placeholder="e.g. 40">
+            </label>
+            <label title="Displacement Y to the next symbol along the row (tilt)">Horizontal Y
+              <input id="matchHy" type="number" step="any" placeholder="e.g. -5">
+            </label>
+            <label title="Displacement X to the next symbol down the column (tilt)">Vertical X
+              <input id="matchVx" type="number" step="any" placeholder="e.g. -10">
+            </label>
+            <label title="Displacement Y to the next symbol down the column">Vertical Y
+              <input id="matchVy" type="number" step="any" placeholder="e.g. 25">
+            </label>
+          </div>
+          <div class="row" style="margin-top: 4px; margin-bottom: 2px;">
+            <button id="btnFindMatches" class="primary wide" type="button" style="height: 25px;">Find 5 Matching Configurations</button>
+          </div>
+          <div id="matcherStatus" role="status" aria-live="polite">Enter measured coordinates (X, Y) and click Find.</div>
+        </div>
+        <div class="section-title" style="margin-top: 4px; margin-bottom: 3px;">TOP 5 CANDIDATES</div>
+        <div id="matcherResults" class="matcher-results">
+          <div class="empty-results">No candidates yet. Enter coordinates and click Find.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="shared/repeat.js"></script>
+  <script src="shared/matcher.js"></script>
+  <script src="js/preset.js"></script>
+  <script src="js/bridge.js"></script>
+  <script src="js/panel.js"></script>
+</body>
+</html>
+
+

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="5.0" ExtensionBundleId="com.seamlessmaker.panel" ExtensionBundleVersion="1.1.8" ExtensionBundleName="Seamless Maker">
+  <ExtensionList><Extension Id="com.seamlessmaker.panel.main" Version="1.1.8" /></ExtensionList>
+  <ExecutionEnvironment>
+    <HostList><Host Name="ILST" Version="[26.0,27.9]" /></HostList>
+    <LocaleList><Locale Code="All" /></LocaleList>
+    <RequiredRuntimeList><RequiredRuntime Name="CSXS" Version="11.0" /></RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.seamlessmaker.panel.main">
+      <DispatchInfo>
+        <Resources><MainPath>./index.html</MainPath><ScriptPath>./host/main.jsx</ScriptPath></Resources>
+        <Lifecycle><AutoVisible>true</AutoVisible></Lifecycle>
+        <UI>
+          <Type>Panel</Type><Menu>Seamless Maker</Menu>
+          <Geometry><Size><Width>400</Width><Height>620</Height></Size><MinSize><Width>400</Width><Height>620</Height></MinSize><MaxSize><Width>400</Width><Height>620</Height></MaxSize></Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>
+
+

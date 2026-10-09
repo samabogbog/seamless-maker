@@ -1,0 +1,12 @@
+dist/
+artifacts/
+node_modules/
+*.zip
+*.rnd
+*.p12
+*.pfx
+*.key
+*.pem
+*.log
+.DS_Store
+Thumbs.db

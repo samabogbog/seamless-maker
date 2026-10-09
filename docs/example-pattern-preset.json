@@ -1,0 +1,26 @@
+{
+  "format": "seamless-maker-pattern",
+  "version": 1,
+  "units": "mm",
+  "settings": {
+    "sizeMode": "custom",
+    "width": 510.23622047244095,
+    "height": 680.3149606299213,
+    "mode": "all",
+    "layout": "lattice",
+    "columns": 4,
+    "rows": 4,
+    "rowShift": 1,
+    "rowCycles": 2,
+    "columnShift": 0,
+    "horizontalX": 127.55905511811024,
+    "horizontalY": 85.03937007874016,
+    "scale": 100,
+    "rotation": 0,
+    "offsetX": 0,
+    "offsetY": 0
+  },
+  "preview": {
+    "background": "white"
+  }
+}
