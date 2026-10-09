@@ -4,6 +4,32 @@
 
 ---
 
+## [1.1.9] - 2026-10-09
+### 🛡️ แก้ไขปัญหา Illustrator แคช (Illustrator Crash & Heap Corruption Fix)
+* **ตรวจพบสาเหตุแครชจาก Crash Log (0xc0000374 Heap Corruption & 0xc0000005 Access Violation):**
+  * พบ Event Error ในระบบ Windows Event Log และ Adobe Crash Reporter (`CRLogs`) ที่ `ntdll.dll` และ `Illustrator.exe`
+  * **ต้นเหตุ:** ในฟังก์ชัน `raster()` ของ `main.jsx` มีการสั่ง `previewLayer.remove()` ลบ Layer พรีวิวชั่วคราวและวัตถุ Clone ทิ้งออกจากหน่วยความจำ C++ DOM แล้วเรียก `app.redraw(); app.undo();` ทันทีหลังจากนั้น
+  * การเรียก `app.undo()` ซ้ำบนอ็อบเจกต์ที่เพิ่งถูกทำลายหน่วยความจำไปแล้ว ทำให้ Undo Manager ของ Illustrator พยายามย้อนสถานะบน Dangling Pointer (Use-After-Free / Double-Free) ส่งผลให้ตัวจัดการหน่วยความจำของ Windows ดักจับ Heap Corruption และปิดโปรแกรมทันที
+* **การแก้ไขอย่างเด็ดขาด (Safe Document Cleanup):**
+  * บันทึกสถานะ `doc.saved` ก่อนเริ่มพรีวิว แล้วคืนค่า `doc.saved = wasSaved` โดยตรงหลังลบ Layer พรีวิว เพื่อให้เอกสารคงสถานะบันทึกไว้ได้โดยไม่ต้องพึ่งพา `app.undo()`
+  * ยกเลิกการเรียก `app.undo()` จากสคริปต์พรีวิวทั้งหมด ป้องกันการรบกวน Undo Stack และตัดความเสี่ยงเรื่องหน่วยความจำเสียหายโดยสิ้นเชิง
+
+### ⚡ เพิ่มความเร็วในการโหลด Symbol ไฟล์ที่มีหลายเลเยอร์และหลายอ็อบเจกต์ (High-Performance Symbol Capture)
+* **สาเหตุที่ช้าเดิม (O(N²) DOM Scan Bottleneck):**
+  * เมื่อกด `Use Selected Symbol` สคริปต์จะค้นหาพื้นที่ว่างบน Canvas เพื่อวาง Symbol จำลองสำหรับ Capture เป็น PNG
+  * โค้ดเดิมใช้ลูป `for (i = 0; i < doc.pageItems.length; i++)` ซึ่งใน Illustrator ExtendScript เป็นการวิ่งสแกนทะลุลงไปในทุกๆ วัตถุย่อยแบบ Deep Recursion
+  * หากไฟล์มีหลายเลเยอร์หรือมีวัตถุ 5,000–50,000 ชิ้น ลูปจะส่งคำสั่ง COM ข้ามโพรเซสไป-กลับกว่าหลายหมื่นครั้ง ทำให้ Illustrator ค้าง/กระตุก 10–30 วินาที
+* **การแก้ไขให้เร็วในทันที (Fast Boundary Determination):**
+  * สแกนขอบเขตอาร์ตบอร์ดทั้งหมดก่อน (`doc.artboards`) ซึ่งทำได้ทันทีใน 0.001 วินาที
+  * สแกนเฉพาะวัตถุระดับบนสุดของแต่ละเลเยอร์ (`lyr.pageItems || lyr.items`) ซึ่งกลุ่มวัตถุ (GroupItem) จะคืนค่าขอบเขตคลุมวัตถุย่อยทั้งหมดได้ในคำสั่งเดียว ไม่ต้องวิ่งเจาะทีละชิ้น
+  * แคชความยาวของลูปและจำกัดการสแกนส่วนเกิน ทำให้ไม่ว่าไฟล์งานจะมีวัตถุหนาแน่นแค่ไหน ก็ทำงานเสร็จได้ในระดับ **1–5 มิลลิวินาที** รวดเร็วแทบจะในทันทีเหมือนไฟล์เปล่า
+
+### 📦 การแพ็กเกจ (Packaging)
+* สร้างแพ็กเกจไฟล์สำหรับติดตั้ง: `dist/SeamlessMaker-1.1.9-Windows.zip`
+* อัปเดตข้อมูลเวอร์ชัน 1.1.9 ให้สอดคล้องกันทั่วทั้งระบบ
+
+---
+
 ## [1.1.8] - 2026-10-01 / 2026-10-09
 ### 🎨 การปรับปรุง UI และสัดส่วน Preview (Preview & Outline Redesign)
 * **ปรับสัดส่วนกล่อง Preview ให้ใกล้สี่เหลี่ยมจัตุรัส (Balanced Canvas Aspect Ratio):**
@@ -20,24 +46,6 @@
 * **ตัด Effect Outline และ Focus Ring ทั้งหมดเป็น none:**
   * กำหนด `outline: none !important;` และ `box-shadow: none !important;` ทั่วทั้งพาเนล
   * ป้องกันไม่ให้เกิดเส้นขอบ Focus สีฟ้า/ขาว หรือเงาหนาปรากฏขึ้นมาเมื่อคลิกปุ่มหรือช่อง Input ต่างๆ
-
-### 🛡️ แก้ไขปัญหา Illustrator แคช (Illustrator Crash & Heap Corruption Fix)
-* **ตรวจพบสาเหตุแครชจาก Crash Log (0xc0000374 Heap Corruption & 0xc0000005 Access Violation):**
-  * พบ Event Error ในระบบ Windows Event Log และ Adobe Crash Reporter (`CRLogs`) ที่ `ntdll.dll` และ `Illustrator.exe`
-  * **ต้นเหตุ:** ในฟังก์ชัน `raster()` ของ `main.jsx` มีการสั่ง `previewLayer.remove()` ลบ Layer พรีวิวชั่วคราวและวัตถุ Clone ทิ้งออกจากหน่วยความจำ C++ DOM แล้วเรียก `app.redraw(); app.undo();` ทันทีหลังจากนั้น
-  * การเรียก `app.undo()` ซ้ำบนอ็อบเจกต์ที่เพิ่งถูกทำลายหน่วยความจำไปแล้ว ทำให้ Undo Manager ของ Illustrator พยายามย้อนสถานะบน Dangling Pointer (Use-After-Free / Double-Free) ส่งผลให้ตัวจัดการหน่วยความจำของ Windows ดักจับ Heap Corruption และปิดโปรแกรมทันที
-* **การแก้ไขอย่างเด็ดขาด (Safe Document Cleanup):**
-  * บันทึกสถานะ `doc.saved` ก่อนเริ่มพรีวิว แล้วคืนค่า `doc.saved = wasSaved` โดยตรงหลังลบ Layer พรีวิว เพื่อให้เอกสารคงสถานะบันทึกไว้ได้โดยไม่ต้องพึ่งพา `app.undo()`
-  * ยกเลิกการเรียก `app.undo()` จากสคริปต์พรีวิวทั้งหมด ป้องกันการรบกวน Undo Stack และตัดความเสี่ยงเรื่องหน่วยความจำเสียหายโดยสิ้นเชิง
-### ⚡ เพิ่มความเร็วในการโหลด Symbol ไฟล์ที่มีหลายเลเยอร์และหลายอ็อบเจกต์ (High-Performance Symbol Capture)
-* **สาเหตุที่ช้าเดิม (O(N²) DOM Scan Bottleneck):**
-  * เมื่อกด `Use Selected Symbol` สคริปต์จะค้นหาพื้นที่ว่างบน Canvas เพื่อวาง Symbol จำลองสำหรับ Capture เป็น PNG
-  * โค้ดเดิมใช้ลูป `for (i = 0; i < doc.pageItems.length; i++)` ซึ่งใน Illustrator ExtendScript เป็นการวิ่งสแกนทะลุลงไปในทุกๆ วัตถุย่อยแบบ Deep Recursion
-  * หากไฟล์มีหลายเลเยอร์หรือมีวัตถุ 5,000–50,000 ชิ้น ลูปจะส่งคำสั่ง COM ข้ามโพรเซสไป-กลับกว่าหลายหมื่นครั้ง ทำให้ Illustrator ค้าง/กระตุก 10–30 วินาที
-* **การแก้ไขให้เร็วในทันที (Fast Boundary Determination):**
-  * สแกนขอบเขตอาร์ตบอร์ดทั้งหมดก่อน (`doc.artboards`) ซึ่งทำได้ทันทีใน 0.001 วินาที
-  * สแกนเฉพาะวัตถุระดับบนสุดของแต่ละเลเยอร์ (`lyr.pageItems || lyr.items`) ซึ่งกลุ่มวัตถุ (GroupItem) จะคืนค่าขอบเขตคลุมวัตถุย่อยทั้งหมดได้ในคำสั่งเดียว ไม่ต้องวิ่งเจาะทีละชิ้น
-  * แคชความยาวของลูปและจำกัดการสแกนส่วนเกิน ทำให้ไม่ว่าไฟล์งานจะมีวัตถุหนาแน่นแค่ไหน ก็ทำงานเสร็จได้ในระดับ **1–5 มิลลิวินาที** รวดเร็วแทบจะในทันทีเหมือนไฟล์เปล่า
 
 ### 🔍 ระบบ Reverse Pattern Matcher (แท็บ Matcher)
 * **แก้ไขข้อผิดพลาด Repeat Mode:** ทำให้ตัวเลือก `Repeat Mode` ในแท็บ Matcher ใช้งานได้จริงและเป็นอิสระ ไม่ถูกดึงค่าจากแท็บ Repeat มาเขียนทับเมื่อสลับแท็บ

@@ -71,7 +71,7 @@ reg add "HKCU\Software\Adobe\CSXS.15" /v PlayerDebugMode /t REG_SZ /d "1" /f
 2. ไปที่แถบเมนูด้านบน:
    * สำหรับ Illustrator รุ่นใหม่: **Window > Extensions > Seamless Maker**
    * สำหรับ Illustrator บางรุ่น: **Window > Extensions (Legacy) > Seamless Maker**
-3. หน้าต่างพาเนล **Seamless Maker (เวอร์ชัน 1.1.8)** จะปรากฏขึ้นมาพร้อมใช้งาน
+3. หน้าต่างพาเนล **Seamless Maker (เวอร์ชัน 1.1.9)** จะปรากฏขึ้นมาพร้อมใช้งาน
 
 ### ขั้นตอนการเริ่มสร้างลาย:
 1. สร้างหรือเปิดเอกสาร Illustrator

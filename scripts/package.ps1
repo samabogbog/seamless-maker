@@ -6,7 +6,7 @@ $stage = [IO.Path]::GetFullPath((Join-Path $dist ('staging-' + [Guid]::NewGuid()
 if ((Split-Path -Parent $stage) -ne $dist) { throw 'Invalid staging path.' }
 New-Item -ItemType Directory -Path $stage | Out-Null
 try {
-    foreach ($item in @('extension','install','Install.cmd','Uninstall.cmd','README.md','docs')) {
+    foreach ($item in @('extension','install','Install.cmd','Uninstall.cmd','README.md','INSTALL.md','CHANGELOG.md','docs')) {
         Copy-Item -LiteralPath (Join-Path $root $item) -Destination $stage -Recurse -Force
     }
     New-Item -ItemType Directory -Path (Join-Path $stage 'tests') | Out-Null

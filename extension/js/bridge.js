@@ -1,5 +1,5 @@
 (function (root) {
-    var queue = [], running = false, hostVersion = "1.1.8";
+    var queue = [], running = false, hostVersion = "1.1.9";
     function literal(value) {
         return JSON.stringify(value).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
     }
