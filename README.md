@@ -14,7 +14,7 @@ This release handles one Symbol at a time. It does not create a Pattern Swatch, 
 
 ## Install
 
-1. Close Illustrator, extract `SeamlessMaker-1.1.9-Windows.zip` completely, and double-click `Install.cmd`.
+1. Close Illustrator, extract `SeamlessMaker-1.1.10-Windows.zip` completely, and double-click `Install.cmd`.
 2. The installer copies the panel to `%APPDATA%\Adobe\CEP\extensions\com.seamlessmaker.panel`. No administrator access is required. It does not change any Adobe security settings.
 3. The **Signed.zip** contains the verified signed extension including `META-INF`, plus a signed `.zxp` for CEP-compatible ZXP installers. Preserve all extension files unchanged. No private certificate or password is included. The older ZIP without `Signed` in its name remains an unsigned development build. The installer backs up the existing Seamless Maker folder to `%TEMP%` and replaces it completely to avoid stale files invalidating the signature.
 4. For deliberate developer testing, Adobe documents `PlayerDebugMode` under the current user's `Software\Adobe\CSXS.<runtime version>` registry key. Setting it to the string `1` permits unsigned extensions for that runtime generally, not just Seamless Maker. Use only the specific runtime used by your Illustrator, and record the original value before changing it. The installer does **not** make this change. See [Adobe's CEP cookbook](https://github.com/Adobe-CEP/CEP-Resources/blob/master/CEP_8.x/Documentation/CEP%208.0%20HTML%20Extension%20Cookbook.md).
@@ -45,7 +45,7 @@ Grid/Staggered Rows repeat their finite base positions by the full tile period; 
 
 - Steps must be positive integers; dimensions and Scale must be positive finite values. Tiles and transformed symbol bounds are capped at 16,383 pt per dimension for older Illustrator compatibility.
 - Over 2,000 instances shows a performance warning; over 10,000 disables creation. All Sides lattice density is Horizontal Steps × Vertical Steps × Row Cycles. Excessive density and pathological tilt scans are rejected before expensive allocation. Top–Bottom counts depend on fixed spacing and the crop dimensions.
-- Preview is a transparent PNG, capped around 2,048 px on the longest side. Color/transparency come from Illustrator rendering, but this is not a proof of CMYK print output. High zoom, spot colors, document effects and artwork compositing can differ from a raster preview.
+- Preview is a transparent PNG targeting 2,048 px on the longest side; large symbols can exceed that target because imageCapture requires at least 72 PPI. Color/transparency come from Illustrator rendering, but this is not a proof of CMYK print output. High zoom, spot colors, document effects and artwork compositing can differ from a raster preview.
 - The source's instance appearance is preserved. Appearance inherited from an enclosing group/layer is not included; select a standalone symbol instance for matching output. External blend interactions, effects outside Illustrator's reported visible bounds, and symbols with no measurable area are outside the preview guarantee.
 - Creation revalidates the document, artboard, source bounds/opacity/blending and preview settings. If they change, refresh first. SymbolItem does not expose a transform matrix; if you change the source's orientation or definition without changing its bounds, click Refresh to update the image.
 - A failed creation removes only the new output layer and restores the old selection/layer. A successful repeat can be removed by deleting its new layer; the extension does not guarantee a single Illustrator undo step.
@@ -117,7 +117,7 @@ flowchart LR
     Host -->|JSON result and PNG file URI| Panel
     Math[shared/repeat.js] --> Panel
     Math --> Host
-    Host --> Preview[Hidden scratch document: one Symbol to PNG]
+    Host --> Preview[Current document: one isolated temporary Symbol to PNG]
     Host --> Output[Create: linked Symbol copies and clipping group]
 ```
 
@@ -138,7 +138,7 @@ The host and shared modules use ES3 syntax. The browser code also avoids modern 
 
 1. **Inspect:** on opening the panel, `inspect` reads the current artboard. It does not create artwork.
 2. **Capture:** Use Selected Symbol sends `capture`. The host requires exactly one SymbolItem, retains references to that instance and its document, and returns a `sourceToken`. Capturing a new source replaces the previous session and releases its cached PNG files.
-3. **Prepare:** after approximately 150 ms without another input change, the panel sends `prepare` with the source token and point-based settings. The host resolves active-artboard dimensions and renders a PNG only when needed or when Refresh requests it. Rendering duplicates one Symbol into an isolated region of the current document, applies the protocol's relative transform, measures `visibleBounds`, captures a transparent PNG, then removes and undoes the temporary copy. The current UI sends neutral transform values: 100% scale, 0° additional rotation and zero offsets.
+3. **Prepare:** after approximately 150 ms without another input change, the panel sends `prepare` with the source token and point-based settings. The host resolves active-artboard dimensions and renders a PNG only when needed or when Refresh requests it. One native `doc.visibleBounds` query, combined with artboard/source bounds, locates a region outside all artwork without enumerating pageItems. Rendering duplicates one Symbol into that region, measures its transformed bounds, captures a transparent PNG, then directly removes the temporary layer. No Undo/Redo is invoked. The current UI sends neutral transform values: 100% scale, 0° additional rotation and zero offsets. Cleanup failure invalidates the prepared snapshot, blocks that session, and does not mark the modified document as saved.
 4. **Show:** the response contains the resolved settings, measured footprint, PNG URI, instance count and `previewToken`. The panel runs the shared calculation again and checks that its count agrees with the host. It loads the PNG and draws the positions into Canvas. Input revisions prevent an earlier response from replacing a newer preview.
 5. **Create:** the panel sends the prepared settings and tokens, not a client-generated position array. The host checks the document, source fingerprint, artboard and settings against the prepared snapshot, then recalculates positions independently. It duplicates the source into its own new layer, places every instance by its transformed visible-bounds center, and adds the exact clipping rectangle. If creation fails, it removes only that new output layer and restores the previous selection/active layer.
 6. **Release:** closing the panel requests `release` to discard the source reference and session-owned PNG files. A crash can interrupt this cleanup; remaining preview files are described under Uninstall above.

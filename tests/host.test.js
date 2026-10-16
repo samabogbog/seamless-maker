@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const defaults = { sizeMode: 'custom', width: 100, height: 80, columns: 3, rows: 3, scale: 100, rotation: 0, offsetX: -8, offsetY: 7, mode: 'all', layout: 'stagger' };
 
 function fixture(options = {}) {
-  const pngs = new Set(), captures = [], documents = [], backgroundDocs = [];
+  const pngs = new Set(), captures = [], documents = [], backgroundDocs = [], stats={boundsReads:0,pageItemReads:0};
   let context, failingDuplicate = false;
   function File(name) {
     if (!(this instanceof File)) return new File(name);
@@ -32,6 +32,9 @@ function fixture(options = {}) {
       value.items.unshift(mask); return mask;
     } };
     value.remove = () => { const list = parent.layers ? parent.layers.items : parent.items; list.splice(list.indexOf(value), 1); value.removed = true; };
+    if(options.cleanupFailure && type==='Layer' && parent.layers && parent.layers.items.length) {
+      value.remove=()=>{throw new Error('Injected layer cleanup failure');};
+    }
     return value;
   }
   function symbol(parent, width = 18, height = 12) {
@@ -58,7 +61,14 @@ function fixture(options = {}) {
     // Illustrator Document does not expose activate(); Application.activeDocument is settable.
     value.close = () => { documents.splice(documents.indexOf(value),1); value.closed=true; if(app.activeDocument===value)app.activeDocument=documents[0]; };
     value.exportFile = (file,type,captureOptions) => { if(options.hiddenExportNoDocument && value.background)throw new Error('there is no document'); if(options.hiddenExportMissingFile && value.background)return; pngs.add(file.name); captures.push({file,bounds:value.artboards[0].artboardRect.slice(),options:captureOptions,type,doc:value}); if(options.exportFailure)throw new Error('Injected PNG export failure'); };
-    Object.defineProperty(value,'pageItems',{get(){const all=[];function visit(parent){for(const item of parent.items){if(item.visibleBounds)all.push(item);if(item.items)visit(item);}}for(const layer of value.layers.items)visit(layer);return all;}});value.imageCapture=(file,bounds,captureOptions)=>{ pngs.add(file.name); captures.push({file,bounds:bounds.slice(),options:captureOptions,doc:value,visibleLayers:value.layers.items.filter(l=>l.visible)}); if(options.exportFailure)throw new Error('Injected PNG export failure'); }; documents.push(value); return value;
+    Object.defineProperty(value,'visibleBounds',{get(){
+      stats.boundsReads++;
+      if(options.invalidDocumentBounds)return [NaN,0,0,0];
+      let result=null;
+      function visit(parent){for(const item of parent.items){const b=item.visibleBounds;if(b){if(!result)result=b.slice();else{result[0]=Math.min(result[0],b[0]);result[1]=Math.max(result[1],b[1]);result[2]=Math.max(result[2],b[2]);result[3]=Math.min(result[3],b[3]);}}if(item.items)visit(item);}}
+      for(const layer of value.layers.items)visit(layer);return result||[0,0,0,0];
+    }});
+    Object.defineProperty(value,'pageItems',{get(){stats.pageItemReads++;if(options.forbidPageItemScan)throw new Error('Document item scans are forbidden');const all=[];function visit(parent){for(const item of parent.items){if(item.visibleBounds)all.push(item);if(item.items)visit(item);}}for(const layer of value.layers.items)visit(layer);return all;}});value.imageCapture=(file,bounds,captureOptions)=>{ pngs.add(file.name); captures.push({file,bounds:bounds.slice(),options:captureOptions,doc:value,visibleLayers:value.layers.items.filter(l=>l.visible)}); if(options.exportFailure)throw new Error('Injected PNG export failure'); }; documents.push(value); return value;
   }
   const app = { documents, activeDocument: null, version: '27.9', coordinateSystem: 'artboard', startupPresetsList:['Web','Print'], redraws:0,activations:0,visibleAdds:0,undos:0,undo(){this.undos++;},redraw() {this.redraws++;} };
   documents.add = (colorSpace) => { app.visibleAdds++;const value=doc(colorSpace); app.activeDocument=value; return value; };
@@ -76,7 +86,7 @@ function fixture(options = {}) {
   function dispatch(request) { return JSON.parse(context.SeamlessMaker.dispatch(JSON.stringify(request))); }
   function call(request) { const result=dispatch(request); if (!result.ok) throw new Error(result.error); return result.data; }
   const captured=call({action:'capture'});
-  return {call,dispatch,captured,source,original,documents,captures,pngs,app,backgroundDocs,failDuplicate() { failingDuplicate=true; }};
+  return {call,dispatch,captured,source,original,documents,captures,pngs,app,backgroundDocs,stats,failDuplicate() { failingDuplicate=true; }};
 }
 
 test('actual host initializes from explicit CEP path even when $.fileName is unavailable', () => {
@@ -225,4 +235,43 @@ test('canvas validation fails before starting a document transaction',()=>{
   const f=fixture();f.source.resize(100000,100000);
   const result=f.dispatch({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
   assert.equal(result.ok,false);assert.match(result.error,/canvas limit/);assert.equal(f.app.undos,0);assert.equal(f.app.visibleAdds,0);
+});
+
+test('complete native bounds isolate item 151 and nested artwork without scanning pageItems',()=>{
+  const f=fixture({forbidPageItemScan:true}),layer=f.original.activeLayer;
+  for(let i=0;i<149;i++)layer.items.push({visibleBounds:[2,35,20,23]});
+  const outside={visibleBounds:[0,22,23,0]},nested={items:[{visibleBounds:[-80,200,-40,-100]}]};
+  layer.items.push(outside,nested);
+  Object.defineProperty(layer,'pageItems',{get(){throw new Error('Per-layer DOM scans are forbidden');}});
+  const result=f.call({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
+  assert.ok(result.image.uri);assert.equal(f.stats.boundsReads,1);assert.equal(f.stats.pageItemReads,0);assert.equal(f.app.undos,0);assert.equal(f.app.visibleAdds,0);
+  const b=f.captures[0].bounds;
+  for(const a of [outside.visibleBounds,nested.items[0].visibleBounds])assert.ok(b[0]>=a[2]||b[2]<=a[0]||b[1]<=a[3]||b[3]>=a[1]);
+  f.call({action:'prepare',sourceToken:f.captured.sourceToken,settings:{...defaults,rows:4}});
+  assert.equal(f.stats.boundsReads,1,'layout changes must reuse cached PNG and bounds');
+});
+
+test('50,000-item preview uses one native bounds query and keeps prior redraw count',()=>{
+  const f=fixture({forbidPageItemScan:true}),layer=f.original.activeLayer;
+  for(let i=0;i<50000;i++)layer.items.push({visibleBounds:[i%100,100,i%100+1,99]});
+  f.call({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
+  assert.equal(f.stats.boundsReads,1);assert.equal(f.stats.pageItemReads,0);assert.equal(f.app.redraws,2);assert.equal(f.app.undos,0);
+  assert.equal(f.original.layers.items.length,1);assert.equal(f.documents.length,1);
+});
+
+test('cleanup failure invalidates previous preview and never marks a dirty document as saved',()=>{
+  const f=fixture();const first=f.call({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
+  let dirty=false,savedRestores=0;Object.defineProperty(f.original,'saved',{get(){return !dirty;},set(v){if(v)savedRestores++;dirty=!v;}});
+  const add=f.original.layers.add;f.original.layers.add=function(){dirty=true;const layer=add.call(this);layer.remove=()=>{throw new Error('Injected cleanup failure');};return layer;};
+  const result=f.dispatch({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults,refresh:true});
+  assert.equal(result.ok,false);assert.match(result.error,/cleanup failed/);assert.equal(savedRestores,0);assert.equal(f.original.saved,false);
+  assert.equal(f.original.layers.items.length,2);assert.equal(f.pngs.size,1,'partial PNG is removed, prior cached image retained');
+  const created=f.dispatch({action:'create',sourceToken:f.captured.sourceToken,previewToken:first.previewToken,settings:defaults});
+  assert.equal(created.ok,false);assert.match(created.error,/cleanup failed/);assert.equal(f.app.undos,0);
+  assert.equal(f.dispatch({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults}).ok,false);
+});
+
+test('invalid native bounds fail closed before temporary artwork is created',()=>{
+  const f=fixture({invalidDocumentBounds:true});const result=f.dispatch({action:'prepare',sourceToken:f.captured.sourceToken,settings:defaults});
+  assert.equal(result.ok,false);assert.match(result.error,/bounds are invalid/);assert.equal(f.original.layers.items.length,1);assert.equal(f.captures.length,0);assert.equal(f.app.undos,0);
 });

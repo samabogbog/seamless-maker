@@ -35,6 +35,7 @@
     function validSession(token) {
         var doc = active();
         if (!session || session.id !== token) { throw new Error("Use Selected Symbol to load a symbol first."); }
+        if (session.previewCleanupFailure) { throw new Error("Preview cleanup failed. Remove the temporary preview layer and use Use Selected Symbol again."); }
         if (doc !== session.doc) { throw new Error("The active document changed. Use Selected Symbol again."); }
         try { if (session.item.typename !== "SymbolItem" || session.item.hidden) { throw new Error("Invalid or hidden source"); } fingerprint(session.item); }
         catch (e) { throw new Error("Cannot read the source symbol: " + String(e.message || e) + ". Use Selected Symbol again."); }
@@ -76,8 +77,17 @@
             // Commit preceding edits before starting our reversible preview transaction.
             // Never redraw while the isolated layer is present.
             app.redraw();
-            // Fast occupied region: combine artboard extents, top-level layer items, and source symbol.
-            // Avoids scanning doc.pageItems recursively, which causes severe freezing on documents with many objects/layers.
+            // One native bounds query covers all artwork, including nested items and items
+            // beyond index 150. Do not enumerate pageItems across the ExtendScript bridge.
+            step = "read document bounds";
+            var documentBounds = doc.visibleBounds;
+            if (!documentBounds || documentBounds.length !== 4) { throw new Error("Cannot determine complete document bounds safely."); }
+            occupied = [];
+            for (i = 0; i < 4; i += 1) {
+                if (typeof documentBounds[i] !== "number" || !isFinite(documentBounds[i])) { throw new Error("Document bounds are invalid."); }
+                occupied[i] = documentBounds[i];
+            }
+            if (occupied[0] > occupied[2] || occupied[1] < occupied[3]) { throw new Error("Document bounds are invalid."); }
             if (doc.artboards && doc.artboards.length) {
                 var abCount = doc.artboards.length;
                 for (i = 0; i < abCount; i += 1) {
@@ -87,29 +97,6 @@
                         else {
                             occupied[0] = Math.min(occupied[0], ab[0]); occupied[1] = Math.max(occupied[1], ab[1]);
                             occupied[2] = Math.max(occupied[2], ab[2]); occupied[3] = Math.min(occupied[3], ab[3]);
-                        }
-                    }
-                }
-            }
-            if (doc.layers && doc.layers.length) {
-                var layerCount = doc.layers.length;
-                for (var l = 0; l < layerCount; l += 1) {
-                    var lyr = doc.layers[l];
-                    var layerItems = lyr.pageItems || lyr.items;
-                    if (layerItems) {
-                        var itemCount = layerItems.length;
-                        var scanLimit = itemCount > 150 ? 150 : itemCount;
-                        for (i = 0; i < scanLimit; i += 1) {
-                            try {
-                                var existing = layerItems[i].visibleBounds;
-                                if (existing) {
-                                    if (!occupied) { occupied = [existing[0], existing[1], existing[2], existing[3]]; }
-                                    else {
-                                        occupied[0] = Math.min(occupied[0], existing[0]); occupied[1] = Math.max(occupied[1], existing[1]);
-                                        occupied[2] = Math.max(occupied[2], existing[2]); occupied[3] = Math.min(occupied[3], existing[3]);
-                                    }
-                                }
-                            } catch (ignoredItemBounds) {}
                         }
                     }
                 }
@@ -167,20 +154,27 @@
             var wrapped = new Error("Preview: " + step + ": " + detail);
             throw wrapped;
         } finally {
+            var cleanupErrors = [];
             if (previewLayer) {
-                try { previewLayer.remove(); } catch (ignoredLayerRemove) {}
-                if (oldLayer) { try { if (doc.activeLayer !== oldLayer) { doc.activeLayer = oldLayer; } } catch (ignoredActiveLayer) {} }
+                try { previewLayer.remove(); } catch (removeError) { cleanupErrors.push("temporary layer removal: " + String(removeError.message || removeError)); }
+                if (oldLayer) { try { if (doc.activeLayer !== oldLayer) { doc.activeLayer = oldLayer; } } catch (activeLayerError) { cleanupErrors.push("active layer restoration"); } }
                 try {
                     var selection = doc.selection, sameSelection = (selection ? selection.length : 0) === (oldSelection ? oldSelection.length : 0);
                     if (sameSelection && oldSelection) {
                         for (i = 0; i < oldSelection.length; i += 1) { if (selection[i] !== oldSelection[i]) { sameSelection = false; break; } }
                     }
                     if (!sameSelection) { doc.selection = oldSelection; }
-                } catch (ignoredSelection) {}
-                try { if (doc.saved !== wasSaved) { doc.saved = wasSaved; } } catch (ignoredSaved) {}
+                } catch (selectionError) { cleanupErrors.push("selection restoration"); }
+                if (!cleanupErrors.length) {
+                    try { if (doc.saved !== wasSaved) { doc.saved = wasSaved; } } catch (savedError) { cleanupErrors.push("saved state restoration"); }
+                }
                 try { app.redraw(); } catch (ignoredRedraw) {}
             }
-            if (!success && png) { try { png.remove(); } catch (ignoredFile) {} }
+            if ((!success || cleanupErrors.length) && png) { try { png.remove(); } catch (ignoredFile) {} }
+            if (cleanupErrors.length) {
+                if (session) { session.prepared = null; session.previewCleanupFailure = true; }
+                throw new Error("Preview cleanup failed: " + cleanupErrors.join("; ") + ". Check the temporary preview layer before using Use Selected Symbol again.");
+            }
         }
     }
     function capture() {
@@ -195,6 +189,7 @@
     }
     function prepare(args) {
         var doc = validSession(args.sourceToken), s = settingsFor(doc, args.settings), stamp = fingerprint(session.item);
+        session.prepared = null;
         var imageKey = stamp + ":" + s.scale + ":" + s.rotation;
         if (args.refresh || !session.image || session.image.key !== imageKey) {
             var next = raster(doc, session.item, s);
@@ -249,7 +244,7 @@
         }
     }
     $.global.SeamlessMaker = {
-        version: "1.1.9",
+        version: "1.1.10",
         dispatch: function (payload) {
             var previousCoordinates, originalDocument = null;
             try {

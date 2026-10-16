@@ -2,6 +2,16 @@
 
 รายการบันทึกประวัติการพัฒนาและการเปลี่ยนแปลงทั้งหมดของโปรเจกต์ **Seamless Maker** สำหรับ Adobe Illustrator
 
+## [1.1.10] - 2026-10-16
+
+- Read complete occupied artwork bounds through one native `Document.visibleBounds` query plus artboard/source bounds. Removed the incomplete 150-item scan without restoring recursive ExtendScript DOM enumeration.
+- Cleanup failures now fail preparation, delete the partial PNG, invalidate old preview tokens and block that source session. Saved status is restored only after successful cleanup. Check/remove the temporary preview layer before loading the source again.
+- Preserved in-document imageCapture, PNG caching and the existing redraw count. No scratch documents or Undo/Redo calls are added. Removed Undo/Redo execution from the standalone preview smoke script too.
+- Matcher independently tracks units and converts dimensions plus all four vectors. Input edits clear candidates; Apply checks the search signature against current inputs, including synchronized tile changes.
+- Matcher excludes odd-row Staggered Rows from constant-vector matches; exact even-row matches and existing Maker staggered layouts remain supported.
+- Nine new regression tests cover item 151/nested artwork, a 50,000-item simulated document with one native bounds read, cleanup errors, invalid bounds, repeated unit changes, stale Apply and odd/even stagger matching. All 67 automated tests pass. Actual Illustrator performance and crash soak testing of this release remain pending.
+- Distributed as an unsigned development ZIP; the signing certificate/password are not present in this checkout.
+
 ---
 
 ## [1.1.9] - 2026-10-09

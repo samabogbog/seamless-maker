@@ -218,3 +218,43 @@ test('matcher tab switches, solves candidate configs, and applies chosen setting
  assert.equal(f.elements.mode.value, 'vertical');
 });
 
+test('Matcher independently converts dimensions and all four vectors across repeated unit changes',()=>{
+ const f=fixture();f.load();f.elements.matchSizeMode.value='custom';
+ for(const name of ['matchWidth','matchHeight','matchHx','matchHy','matchVx','matchVy'])f.elements[name].value='25.4';
+ f.elements.matchHy.value='-25.4';f.elements.matchVx.value='0';
+ f.elements.matchUnits.value='in';f.elements.matchUnits.onchange();
+ for(const name of ['matchWidth','matchHeight','matchHx','matchVy'])assert.equal(f.elements[name].value,'1');
+ assert.equal(f.elements.matchHy.value,'-1');assert.equal(f.elements.matchVx.value,'0');
+ f.elements.matchUnits.value='cm';f.elements.matchUnits.onchange();
+ assert.equal(f.elements.matchWidth.value,'2.54');assert.equal(f.elements.matchHx.value,'2.54');assert.equal(f.elements.matchHy.value,'-2.54');
+ assert.equal(f.elements.units.value,'mm');
+ f.elements.matchSizeMode.value='sync';f.elements.matchSizeMode.onchange();
+ assert.equal(f.elements.matchUnits.value,'mm');assert.equal(f.elements.matchHx.value,'25.4');
+});
+
+test('Matcher edits clear candidates and stale Apply callbacks cannot modify Maker settings',()=>{
+ const f=fixture();f.load();f.elements.matchSizeMode.value='custom';f.elements.matchUnits.value='mm';f.elements.matchWidth.value='200';f.elements.matchHeight.value='200';
+ f.elements.matchMode.value='all';f.elements.matchHx.value='50';f.elements.matchHy.value='0';f.elements.matchVx.value='0';f.elements.matchVy.value='50';
+ f.elements.btnFindMatches.onclick();const oldApply=f.elements.matcherResults.children[0].applyButton;
+ const before=f.requests.length;
+ f.elements.matchWidth.value='300';f.elements.matchWidth.oninput();assert.equal(f.elements.matcherResults.children.length,0);
+ oldApply.onclick();assert.equal(f.requests.length,before);assert.match(f.elements.matcherStatus.textContent,/again before Apply/);
+ f.elements.btnFindMatches.onclick();f.elements.matcherResults.children[0].applyButton.onclick();f.flush();
+ assert.equal(f.requests.at(-1).settings.width,300*(72/25.4));assert.equal(f.requests.at(-1).settings.columns,6);
+});
+
+test('Apply guards against changed units, vectors, mode and synchronized tile even without input events',()=>{
+ for(const field of ['matchUnits','matchHx','matchMode','matchWidth']){
+  const f=fixture();f.load();f.elements.matchSizeMode.value='custom';f.elements.matchUnits.value='mm';f.elements.matchWidth.value='200';f.elements.matchHeight.value='200';
+  f.elements.matchMode.value='all';f.elements.matchHx.value='50';f.elements.matchHy.value='0';f.elements.matchVx.value='0';f.elements.matchVy.value='50';
+  f.elements.btnFindMatches.onclick();const oldApply=f.elements.matcherResults.children[0].applyButton,requests=f.requests.length;
+  f.elements[field].value=field==='matchMode'?'vertical':field==='matchUnits'?'in':'300';oldApply.onclick();
+  assert.equal(f.requests.length,requests);assert.match(f.elements.matcherStatus.textContent,/again before Apply/);
+ }
+ const f=fixture();f.load();f.elements.matchSizeMode.value='sync';f.elements.btnFindMatches.onclick();
+ // Supply vectors after opening a synchronized Matcher.
+ f.elements.matchMode.value='all';f.elements.matchHx.value='10';f.elements.matchHy.value='0';f.elements.matchVx.value='0';f.elements.matchVy.value='10';
+ f.elements.btnFindMatches.onclick();const apply=f.elements.matcherResults.children[0].applyButton,requests=f.requests.length;
+ f.elements.sizeMode.value='custom';f.elements.width.value='300';apply.onclick();assert.equal(f.requests.length,requests);assert.match(f.elements.matcherStatus.textContent,/again before Apply/);
+});
+

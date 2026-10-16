@@ -1,5 +1,13 @@
 # Validation
 
+## 1.1.10 regression status (2026-10-16)
+
+All 67 automated checks pass. Added cases for artwork beyond index 150 and nested groups, a simulated 50,000-item document (one native bounds access and zero pageItems scans), cached layout updates, invalid document bounds failing before mutations, cleanup failure retaining dirty state and blocking stale Create, independent Matcher unit conversion, stale Apply callbacks, synchronized tile changes and odd/even stagger matching.
+
+The preview retains in-document imageCapture and the same redraw count. No Undo/Redo or background-document code is introduced. The standalone preview smoke script no longer automates Undo/Redo; historical reports below that mention those checks describe earlier versions.
+
+These are simulated model/DOM checks, not native Illustrator benchmarks. No real-host performance/crash soak pass is claimed for 1.1.10. The installation attempt stopped at the existing Install.ps1 running-Illustrator guard before changing any installed files; save work and close Illustrator before installing. Before production acceptance, run preview/Create checks in RGB/CMYK, repeat Use Selected Symbol/Refresh on representative large files, inspect the PNG for unrelated artwork, and compare timings/crash behavior with 1.1.9. Preserve user files and avoid automated Undo/Redo. Signed release keys are not present; the generated ZIP is a development build.
+
 ## Automated checks
 
 The Node test suite checks:
@@ -18,7 +26,7 @@ Mocks do not establish that Illustrator's own APIs or CEP UI behave correctly on
 
 | Environment | Status |
 | --- | --- |
-| Node.js 24.16.0 on Windows | 46 automated tests passed for 1.1.3 |
+| Node.js on Windows | 67 automated tests passed for 1.1.10 |
 | Illustrator CC 2014 / CEP 5 | ES3 host source and CEP 5 manifest target; actual host validation pending |
 | Illustrator 2023 / 27.5.0 | COM read-only handshake succeeded; full scripting smoke test and UI validation remain pending due execution-access restrictions |
 | Illustrator 2026 | Installation detected; actual host validation pending |

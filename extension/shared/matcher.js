@@ -111,6 +111,9 @@
 
         // 2. Staggered Rows search
         for (r = rowMin; r <= rowMax; r += 1) {
+            // Alternating half-column offsets form a constant lattice vector only
+            // when a full tile contains an even number of rows.
+            if (r % 2) { continue; }
             for (c = colMin; c <= colMax; c += 1) {
                 var shx = width / c;
                 addCandidate("stagger", c, r, 0, 0, 1, shx, 0, 0.5 * shx, height / r);

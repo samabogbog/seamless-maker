@@ -13,7 +13,7 @@ test('bridge serializes calls and escapes host payloads without code injection',
   window.SeamlessBridge.call({action:'inspect'},(e,d)=>results.push([e,d]));
   assert.equal(calls.length,1);
   let decoded;
-  vm.runInNewContext(calls[0],{$:{global:{SeamlessMaker:{version:'1.1.9',dispatch(payload){decoded=JSON.parse(payload);}}}}});
+  vm.runInNewContext(calls[0],{$:{global:{SeamlessMaker:{version:'1.1.10',dispatch(payload){decoded=JSON.parse(payload);}}}}});
   assert.equal(decoded.name,dangerous);
   callbacks[0]('{"ok":true,"data":{"count":7}}');
   assert.equal(calls.length,2); assert.equal(results[0][0],null); assert.equal(results[0][1].count,7);
@@ -26,7 +26,7 @@ test('bridge bootstraps missing host from the actual CEP extension folder and re
   const hostGlobal={};
   const hostContext={ $:{ global:hostGlobal, evalFile(file) {
     loads.push(file.fsName);
-    hostGlobal.SeamlessMaker={version:'1.1.9',dispatch(payload) {
+    hostGlobal.SeamlessMaker={version:'1.1.10',dispatch(payload) {
       dispatched.push(JSON.parse(payload));return '{"ok":true,"data":{"ready":true}}';
     }};
   }}, File(name){return {exists:true,fsName:name};} };

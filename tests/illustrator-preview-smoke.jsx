@@ -1,4 +1,4 @@
-/* Real-host regression: preview isolation, saved state and previous Undo. */
+/* Real-host regression: preview isolation and saved state. Never automate Undo/Redo. */
 (function(){
  var root=File($.fileName).parent.parent, previous=app.documents.length?app.activeDocument:null,d=null,lines=[],passed=0;
  function check(ok,label){if(!ok)throw new Error(label);passed++;lines.push('PASS: '+label);}
@@ -24,8 +24,7 @@
    source.translate(7,0);app.redraw();var moved=SeamlessJSON.stringify(source.visibleBounds);
    call({action:'prepare',sourceToken:captured.sourceToken,settings:settings,refresh:true});
    check(!d.saved && SeamlessJSON.stringify(source.visibleBounds)===moved,'Previous unsaved edit retained '+space);
-   app.undo();check(SeamlessJSON.stringify(source.visibleBounds)===before,'Undo targets previous user edit '+space);
-   app.redo();check(SeamlessJSON.stringify(source.visibleBounds)===moved,'Redo restores previous user edit '+space);
+   check(d.layers.length===3,'Preview cleanup leaves no temporary layer '+space);
    call({action:'release'});d.close(SaveOptions.DONOTSAVECHANGES);d=null;
   }
   lines.push('SUCCESS: '+passed+' checks passed.');

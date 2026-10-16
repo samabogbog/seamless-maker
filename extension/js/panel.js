@@ -4,6 +4,7 @@
     ids.push("importPreset", "exportPreset", "bgToggle");
     ids.push("tabMaker", "tabMatcher", "makerPane", "matcherPane", "matchSizeMode", "matchWidth", "matchHeight", "matchMode", "matchUnits", "matchHx", "matchHy", "matchVx", "matchVy", "btnFindMatches", "matcherStatus", "matcherResultCount", "matcherResults");
     for (i = 0; i < ids.length; i += 1) { el[ids[i]] = document.getElementById(ids[i]); }
+    state.matcherUnit = el.matchUnits.value || "mm";
     function status(message, kind) { el.status.textContent = message; el.status.title = message; el.status.className = kind || ""; }
     function decimal(n) { return String(Math.round(n * 10000) / 10000); }
     function number(id) {
@@ -289,7 +290,7 @@
     function syncMatcherInputs() {
         if (!el.matchSizeMode) { return; }
         if (el.matchSizeMode.value === "sync") {
-            el.matchUnits.value = el.units.value;
+            convertMatcherUnits(el.units.value);
             if (el.sizeMode.value === "artboard" && state.artboard) {
                 var unit = SeamlessRepeat.units[el.units.value];
                 el.matchWidth.value = decimal(state.artboard.width / unit);
@@ -300,6 +301,27 @@
             }
         }
         el.matchWidth.disabled = el.matchHeight.disabled = (el.matchSizeMode.value === "sync");
+    }
+    function convertMatcherUnits(nextUnit) {
+        var from = SeamlessRepeat.units[state.matcherUnit], to = SeamlessRepeat.units[nextUnit];
+        if (!from || !to) { throw new Error("Choose valid Matcher units."); }
+        if (state.matcherUnit !== nextUnit) {
+            var fields = ["matchWidth", "matchHeight", "matchHx", "matchHy", "matchVx", "matchVy"], j;
+            for (j = 0; j < fields.length; j += 1) {
+                var field = el[fields[j]];
+                if (field.value !== "" && isFinite(Number(field.value))) { field.value = decimal(Number(field.value) * from / to); }
+            }
+        }
+        state.matcherUnit = nextUnit; el.matchUnits.value = nextUnit;
+    }
+    function matcherSignature() {
+        return JSON.stringify([el.matchSizeMode.value, el.matchWidth.value, el.matchHeight.value, el.matchUnits.value,
+            el.matchMode.value, el.matchHx.value, el.matchHy.value, el.matchVx.value, el.matchVy.value,
+            el.matchSizeMode.value === "sync" ? el.sizeMode.value : "custom"]);
+    }
+    function invalidateMatcherResults() {
+        el.matcherResults.textContent = ""; el.matcherResultCount.textContent = "0 found";
+        matcherStatus("Inputs changed. Click Find to update candidates.");
     }
     function switchTab(tab) {
         var isMaker = tab === "maker";
@@ -315,20 +337,22 @@
     }
     if (el.tabMaker) { el.tabMaker.onclick = function () { switchTab("maker"); }; }
     if (el.tabMatcher) { el.tabMatcher.onclick = function () { switchTab("matcher"); }; }
-    if (el.matchSizeMode) { el.matchSizeMode.onchange = syncMatcherInputs; }
+    if (el.matchSizeMode) { el.matchSizeMode.onchange = function () { syncMatcherInputs(); invalidateMatcherResults(); }; }
     if (el.matchUnits) {
         el.matchUnits.onchange = function () {
-            var from = SeamlessRepeat.units[state.unit];
-            var to = SeamlessRepeat.units[el.matchUnits.value];
-            if (el.matchSizeMode.value === "custom") {
-                if (el.matchWidth.value && isFinite(Number(el.matchWidth.value))) { el.matchWidth.value = decimal(Number(el.matchWidth.value) * from / to); }
-                if (el.matchHeight.value && isFinite(Number(el.matchHeight.value))) { el.matchHeight.value = decimal(Number(el.matchHeight.value) * from / to); }
-            } else {
-                syncMatcherInputs();
-            }
+            convertMatcherUnits(el.matchUnits.value);
+            if (el.matchSizeMode.value === "sync") { syncMatcherInputs(); }
+            invalidateMatcherResults();
         };
     }
-    function applyCandidate(cand) {
+    var matcherFields = ["matchWidth", "matchHeight", "matchHx", "matchHy", "matchVx", "matchVy"];
+    for (i = 0; i < matcherFields.length; i += 1) { el[matcherFields[i]].oninput = invalidateMatcherResults; }
+    el.matchMode.onchange = invalidateMatcherResults;
+    function applyCandidate(cand, signature) {
+        syncMatcherInputs();
+        if (signature !== matcherSignature()) {
+            invalidateMatcherResults(); matcherStatus("Inputs changed. Find matching configurations again before Apply.", "error"); return;
+        }
         if (el.units.value !== el.matchUnits.value) {
             el.units.value = el.matchUnits.value;
             state.unit = el.units.value;
@@ -360,7 +384,7 @@
         enabled();
         schedule();
     }
-    function renderMatcherResults(candidates) {
+    function renderMatcherResults(candidates, signature) {
         el.matcherResults.textContent = "";
         el.matcherResultCount.textContent = candidates.length + " found";
         if (!candidates || !candidates.length) {
@@ -427,7 +451,7 @@
                 applyBtn.type = "button";
                 applyBtn.textContent = "Apply";
                 applyBtn.onclick = function () {
-                    applyCandidate(cand);
+                    applyCandidate(cand, signature);
                 };
                 actions.appendChild(applyBtn);
 
@@ -516,7 +540,7 @@
                     maxCandidates: 5
                 });
 
-                renderMatcherResults(candidates);
+                renderMatcherResults(candidates, matcherSignature());
             } catch (err) {
                 matcherStatus(err.message, "error");
             }

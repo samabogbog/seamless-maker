@@ -11,6 +11,7 @@ try {
     }
     New-Item -ItemType Directory -Path (Join-Path $stage 'tests') | Out-Null
     Copy-Item -LiteralPath (Join-Path $root 'tests\illustrator-smoke.jsx') -Destination (Join-Path $stage 'tests')
+    Copy-Item -LiteralPath (Join-Path $root 'tests\illustrator-preview-smoke.jsx') -Destination (Join-Path $stage 'tests')
     $version = (Get-Content -LiteralPath (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version
     $zip = Join-Path $dist ("SeamlessMaker-$version-Windows.zip")
     Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force

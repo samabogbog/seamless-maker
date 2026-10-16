@@ -136,3 +136,14 @@ test('matcher supports Top-Bottom vertical mode with fixed horizontal vector', (
   assert.equal(best.diffHx, 0);
   assert.equal(best.diffHy, 0);
 });
+
+test('odd-row stagger never claims an exact constant vector across the tile seam',()=>{
+  const results=matcher.solve({width:200,height:150,targetHx:50,targetHy:0,targetVx:25,targetVy:50,mode:'all',maxCandidates:100});
+  assert.ok(results.length);assert.ok(results.every(c=>c.layout!=='stagger'||c.rows%2===0));
+  assert.ok(results.every(c=>c.matchPct<100),'the requested vectors cannot close a 150pt vertical period exactly');
+});
+
+test('even-row stagger retains its exact match and closes the vertical lattice period',()=>{
+  const results=matcher.solve({width:200,height:200,targetHx:50,targetHy:0,targetVx:25,targetVy:50,mode:'all'});
+  assert.equal(results[0].layout,'stagger');assert.equal(results[0].matchPct,100);assert.equal(results[0].rows,4);
+});
